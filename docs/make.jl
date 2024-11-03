@@ -3,7 +3,7 @@ using Documenter
 
 makedocs(;
     modules=[ActNow],
-    authors=["Graham Stark", "Elliot Johnson", "Matthew Johnson", "Daniel Nettle"],
+    authors="Graham Stark, Elliot Johnson Matthew Johnson Daniel Nettle",
     # checkdocs=:exports,
     repo="https://github.com/grahamstark/ActNow.jl/blob/{commit}{path}#L{line}",
     sitename="ActNow.jl",
