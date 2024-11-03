@@ -334,7 +334,7 @@ function do_delta_regs( joined :: DataFrame, toskip_logs :: Set ) :: Vector
     regs
 end
 
-function do_mixed_regressons( stacked :: DataFrame ) :: Tuple
+function do_mixed_regressions( stacked :: DataFrame ) :: Tuple
     f1 = @formula(basic_income_post ~ 1 + HH_Net_Income_PA +  At_Risk_of_Destitution + gad_7 + phq_8 + Ladder + 
     (1 + HH_Net_Income_PA + At_Risk_of_Destitution + gad_7 + phq_8 + Ladder | PROLIFIC_PID ))
     fm1 = fit(MixedModel, f1, stacked)

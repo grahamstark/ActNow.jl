@@ -1,6 +1,6 @@
 using ActNow
 using Documenter
-
+# from toplevel, start "."; then: Pkg.activate("./docs")
 makedocs(;
     modules=[ActNow],
     authors="Graham Stark, Elliot Johnson Matthew Johnson Daniel Nettle",
