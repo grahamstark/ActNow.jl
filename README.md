@@ -14,17 +14,17 @@ Instructions:
 
 The code and data is packaged as a Julia package and [uploaded to GitHub](https://github.com:grahamstark/ActNow.jl).
 
-To get everying:
+To get everything:
 
 If you have a Git client, execute:
 
     git clone git@github.com:grahamstark/ActNow.jl.git
 
-Otherwise, download a zipfile. Click on the green "Code" button on the RHS of the [repository homepage](https://github.com:grahamstark/ActNow.jl). 
+Otherwise, download a zipfile. Click on the green "Code" button on the RHS of the [repository homepage](https://github.com:grahamstark/ActNow.jl). Unzip this somewhere.
 
 3) Instantiate
-  - 
-  -
+  
+
 
 
 [![Build Status](https://github.com/grahamstark/ActNow.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/grahamstark/ActNow.jl/actions/workflows/CI.yml?query=branch%3Amain)

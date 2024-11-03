@@ -1,10 +1,10 @@
-using Revise
-using ActNow
 using Pkg
 
 Pkg.activate( ".")
 # next may take a while 1st time out. Loads all dependencies & compiles them.
 Pkg.update()
+using Revise
+using ActNow
 #
 # to replicate creating the Wave4 dataset with added variables, run the next line
 #
@@ -19,6 +19,7 @@ make_and_print_summarystats( wave4 )
 
 run_regressions( wave4 )
 
+# println 
 make_all_graphs( wave4 )
 
 #=
@@ -72,15 +73,14 @@ make_w3_w4_change_page( summaries, counts_joined, counts_all )
 #
 fregs = do_fixed_effects( stacked )
 
+# this is the data subset that's in both waves.
 w4_also_w3 = wave4[wave4.in_both_waves .==1, :]
-
-
 #
 # write regressions for the both-waves sample into `output/regressions_w3_w4`.
 # There's no further output for this sample as no-one ever asked for it
 # but see the R Path Analysis script which also uses the subsample.
 #
-run_regressions( wave4; regdir="regressions_w3_w4" )
+run_regressions( w4_also_w3; regdir="regressions_w3_w4" )
 
 #
 # 
