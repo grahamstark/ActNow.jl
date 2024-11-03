@@ -28,11 +28,15 @@ Go to the directory you've created. Open the Julia REPL by typing `julia` at the
 
 Create everything by running:
 
-   include("scripts/julia_driver.jl")
+    include("scripts/julia_driver.jl")
 
 This may take a while on 1st run.
 
 Alernatively, open `scripts/julia_driver.jl` with a text editor and paste the bits you need into the REPL.
+
+Output goes to `output`, not unreasonably. Subdirs `img` and `regressions`.
+
+
 
 
 
