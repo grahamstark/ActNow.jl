@@ -2,7 +2,7 @@
 CurrentModule = ActNow
 ```
 
-# Act Now Julia
+# Act Now Project - Julia Code Main Functions
 
 ```@autodocs
 
