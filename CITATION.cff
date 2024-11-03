@@ -1,12 +1,18 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-- family-names: "Stark"
-  given-names: "Graham"
-  orcid: "https://orcid.org/0000-0002-4740-8711"
 - family-names: "Johnson"
   given-names: "Elliot"
   orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Johnson"
+  given-names: "Matthew"
+  orcid: "https://orcid.org/0000-0002-9987-7050"
+- family-names: "Nettle"
+  given-names: "Daniel"
+  orcid: "https://orcid.org//0000-0001-9089-2599"
+- family-names: "Stark"
+  given-names: "Graham"
+  orcid: "https://orcid.org/0000-0002-4740-8711"
 title: "Replication Code for Act Now Project"
 version: 1.0.0
 doi: 10.5281/zenodo.1234
