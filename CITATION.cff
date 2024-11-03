@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Stark"
+  given-names: "Graham"
+  orcid: "https://orcid.org/0000-0002-4740-8711"
+- family-names: "Johnson"
+  given-names: "Elliot"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "Replication Code for Act Now Project"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2024-11-04
+url: "https://github.com/grahamstark/ActNow.jl"
