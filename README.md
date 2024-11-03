@@ -22,10 +22,17 @@ If you have a Git client, execute:
 
 Otherwise, download a zipfile. Click on the green "Code" button on the RHS of the [repository homepage](https://github.com:grahamstark/ActNow.jl). Unzip this somewhere.
 
-3) Instantiate
+### Instantiate and Run
   
+Go to the directory you've created. Open the Julia REPL by typing `julia` at the top of the directory. 
+
+Create everything by running:
+
+   include("scripts/julia_driver.jl")
+
+This may take a while on 1st run.
+
+Alernatively, open `scripts/julia_driver.jl` with a text editor and paste the bits you need into the REPL.
 
 
 
-[![Build Status](https://github.com/grahamstark/ActNow.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/grahamstark/ActNow.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/grahamstark/ActNow.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/grahamstark/ActNow.jl)
