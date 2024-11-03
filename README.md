@@ -34,7 +34,17 @@ This may take a while on 1st run.
 
 Alernatively, open `scripts/julia_driver.jl` with a text editor and paste the bits you need into the REPL.
 
-Output goes to `output`, not unreasonably. Subdirs `img` and `regressions`.
+Output goes to `output`, not unreasonably. Subdirs 
+
+* `img`
+* `regressions`
+* `regressions_w3_w4`
+
+## R SEM Model
+
+Is in `R`. Should install packages and run with any R 4.xxx. 
+
+
 
 
 
