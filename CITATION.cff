@@ -15,6 +15,6 @@ authors:
   orcid: "https://orcid.org/0000-0002-4740-8711"
 title: "Replication Code for Act Now Project"
 version: 1.0.0
-doi: 10.5281/zenodo.1234
+# doi: 10.5281/zenodo.1234
 date-released: 2024-11-04
 url: "https://github.com/grahamstark/ActNow.jl"
