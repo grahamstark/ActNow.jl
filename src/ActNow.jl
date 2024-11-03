@@ -15,7 +15,6 @@ using
     GLM,
     HypothesisTests,
     Luxor,
-    Luxor,
     Makie,
     MixedModels,
     MultivariateStats,
@@ -45,8 +44,6 @@ export DATA_DIR,
     summarise_pca
 
 const DATA_DIR="data/"
-# const WAVE4 = CSV.File("data/wave-4-national-w-created-vars.tab") |> DataFrame
-# const WAVE3 = CSV.File("data/wave-3-national-w-created-vars.tab") |> DataFrame
 
 include("common.jl")
 include("wave_4_analysis.jl")
