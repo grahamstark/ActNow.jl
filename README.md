@@ -66,6 +66,13 @@ Output goes to `output`, not unreasonably. Subdirs:
 * `regressions` - raw linear regression output created with [Regression Tables](https://github.com/jmboehm/RegressionTables.jl).
 * `regressions_w3_w4`
 
+The output files:
+
+    all_results_by_policy-extremes_excluded.html
+    all_results_by_policy-fullsample.html
+
+consolidate almost all the output used in the papers. The sole difference between them is that the regression results in `all_results_by_policy-extremes_excluded.html` remove the observations scoring 0 or 100 for the given policy.
+
 ## The SEM Model
 
 The SEM model is implemented in `R` using the file file `R/sem-model.R`. You should be able to install the required packages and run the script with any R 4.x. 
