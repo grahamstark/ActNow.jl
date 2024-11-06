@@ -1,6 +1,5 @@
-# install.packages("lavaan", dependencies = TRUE)
-# install.packages("tidyverse", dependencies = TRUE)
-
+install.packages("lavaan", dependencies = TRUE)
+install.packages("tidyverse", dependencies = TRUE)
 install.packages( "psych", dependencies=TRUE)
 install.packages( "Hmisc", dependencies=TRUE)
 install.packages( "semPlot", dependencies=TRUE)
@@ -108,8 +107,8 @@ POLICY_LABELS = list(
 # `pollabel` - same as a text string, for the graph
 #
 do_one_policy <- function( dall, policy, pollabel, short_or_full ){
-    fname = glue::glue("tmp/sem-model-{policy}-{short_or_full}.txt")
-    gfname = glue::glue("tmp/img/sem-model-{policy}-{short_or_full}")
+    fname = glue::glue("output/sem-model-{policy}-{short_or_full}.txt")
+    gfname = glue::glue("output/img/sem-model-{policy}-{short_or_full}")
     sink( fname ) 
     if( short_or_full == 'full'){
         cat( "\n# FULL SAMPLE\n\n")
@@ -138,7 +137,7 @@ do_one_policy <- function( dall, policy, pollabel, short_or_full ){
 }
 
 
-dall4 <- read.delim("data/national-w-created-vars.tab") |> tibble()
+dall4 <- read.delim("data/wave-4-national-w-created-vars.tab") |> tibble()
 # FIXME cast "false"/"true" as bools
 # shorten names for SEM printouts
 dall4 <- dall4 |> rename(all_of(ABBREVS))
