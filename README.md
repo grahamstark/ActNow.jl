@@ -26,6 +26,13 @@ If you have a [Git client](https://git-scm.com/downloads), execute:
 
 Otherwise, download a zipfile. Click on the green "Code" button on the RHS of the [repository homepage](https://github.com:grahamstark/ActNow.jl) and select "Download Zip". Unpack the zipfile  somewhere.
 
+The repository should contain:
+
+* `src` - Julia source code - there are several source 'include files' and a main file ActNow.jl which just consolidates everything;
+* `data` - the main act now survey files and edited versions with various created files - e.g. recoded responses.
+* `R` - a single R file with the SEM analysis
+*  
+
 ### Julia Code - Instantiate and Run
   
 Start the Julia REPL (Read–eval–print loop). On Windows, you can navigate to the ActNow directory with (e.g.):

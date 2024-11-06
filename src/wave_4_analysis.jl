@@ -114,13 +114,13 @@ end
 # See: https://jmboehm.github.io/RegressionTables.jl/stable/regression_statistics/#RegressionTables.AbstractUnderStatistic
 # and the RegressionTables.jl source code.
 #
-struct PValue <: RegressionTables.AbstractUnderStatistic
-    val::Float64
-end
+# struct ConfInt <: RegressionTables.AbstractUnderStatistic
+#     val::Float64
+# end
 
-function PValue(rr::RegressionModel, k::Int; vargs...)
-    PValue(RegressionTables._pvalue(rr)[k])
-end
+# function ConfInt(rr::RegressionModel, k::Int; vargs...)
+#     ConfInt(RegressionTables._ConfInt(rr)[k])
+# end
 
 function g2i( Gender )
     return if Gender .== "Male"
@@ -247,34 +247,50 @@ function make_labels()::Dict{String,String}
     return merge(d, MAIN_EXPLANDICT )
 end
 
+"""
+Sample with > 0 and < 100 for some policy if exclude_0s_and_100s is true
+"""
+function possibly_restricted_sample( dall :: DataFrame, policy :: Symbol, exclude_0s_and_100s )::DataFrame
+    if ! exclude_0s_and_100s
+        return dall
+    end
+    v = dall[!,policy]
+    incls = (v .> 0) .& (v .< 100) 
+    # println( incls )
+    return deepcopy(dall[incls,:]) # otherwise we'll progressively delete records with each policy 
+end
+
 function run_regressions_by_mainvar( 
     dall::DataFrame, 
     mainvar :: Symbol;
+    exclude_0s_and_100s :: Bool,
     regdir = "regressions" )
     #
     # regressions: for each policy, before the explanation, do a big regression and a simple one and add them to a list
     # the convoluted `@eval(@formula( $(depvar)` bit just allows to sub in each dependent variable `$(depvar)`
     #
+    prefix = exclude_0s_and_100s ?  "extremes_excluded" : "fullsample"
     regs=[]
     simpleregs = []
     for policy in POLICIES
         depvar = Symbol( "$(policy)_pre")
+        data = possibly_restricted_sample( dall, depvar, exclude_0s_and_100s )
         if mainvar == :x
             reg = lm( @eval(@formula( $(depvar) ~ 
                 Age + next_election + ethnic_2 + employment_2 + 
-                log(HH_Net_Income_PA) + is_redwall + Gender )), dall )
+                log(HH_Net_Income_PA) + is_redwall + Gender )), data )
         else
             reg = lm( @eval(@formula( $(depvar) ~ 
                 Age + next_election + ethnic_2 + employment_2 + 
                 log(HH_Net_Income_PA) + is_redwall + Gender + 
-                $(mainvar))), dall )
+                $(mainvar))), data )
         end
         push!( regs, reg )
         if mainvar == :x
             reg = lm( @eval(@formula( $(depvar) ~ Age + Gender )), dall)
         else 
             reg = lm( @eval(@formula( $(depvar) ~ 
-                Age + Gender + $( mainvar ))), dall)
+                Age + Gender + $( mainvar ))), data)
         end
         push!( simpleregs, reg )
     end 
@@ -287,26 +303,28 @@ function run_regressions_by_mainvar(
         relgains = Symbol( "$(policy)_treat_relgains" )
         relsec =Symbol( "$(policy)_treat_security" )
         absgains =Symbol( "$(policy)_treat_absgains" )
+        depvar = Symbol( "$(policy)_pre")
+        data = possibly_restricted_sample( dall, depvar, exclude_0s_and_100s )
         relflourish = 
             Symbol( "$(policy)_treat_other_argument" )
         if mainvar == :x
-            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), dall )
+            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), data )
         else
-            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), dall )            
+            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )            
         end
         push!( diffregs, reg )
     end 
     labels = make_labels()
-    regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = TStat )
-    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = PValue)
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render = HtmlTable(), labels=labels)
+    regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
+    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
+    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
     #= unneeded ascii/latex versions
     regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.txt",number_regressions=false, stat_below = false, render=AsciiTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
-    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
     =#
 end # run_regressions_by_mainvar
 
@@ -316,8 +334,14 @@ Take 2 - slightly different regressions and tables organised by policy
 function run_regressions_by_policy( 
     dall::DataFrame, 
     policy :: Symbol;
+    exclude_0s_and_100s :: Bool,
     regdir = "regressions" )
     #
+    # regressions: for each policy, before the explanation, do a big regression and a simple one and add them to a list
+    # the convoluted `@eval(@formula( $(depvar)` bit just allows to sub in each dependent variable `$(depvar)`
+    #
+    prefix = exclude_0s_and_100s ?  "extremes_excluded" : "fullsample"
+#
     # regressions: for each policy, before the explanation, do a big regression and a simple one and add them to a list
     # the convoluted `@eval(@formula( $(depvar)` bit just allows to sub in each dependent variable `$(depvar)`
     #
@@ -329,24 +353,25 @@ function run_regressions_by_policy(
     relsec =Symbol( "$(policy)_treat_security" )
     absgains = Symbol( "$(policy)_treat_absgains" )
     relflourish = Symbol( "$(policy)_treat_other_argument" )
+    data = possibly_restricted_sample( dall, depvar, exclude_0s_and_100s )
 
     reg = lm( @eval(@formula( $(depvar) ~ 
         Age + next_election + ethnic_2 + employment_2 + 
-        log(HH_Net_Income_PA) + is_redwall + Gender )), dall )
+        log(HH_Net_Income_PA) + is_redwall + Gender )), data )
     push!( regs, reg )
-    reg = lm( @eval(@formula( $(depvar) ~ Age + Gender )), dall)
+        reg = lm( @eval(@formula( $(depvar) ~ Age + Gender )), data )
     push!( simpleregs, reg )
     for mainvar in MAIN_EXPLANVARS
         reg = lm( @eval(@formula( $(depvar) ~ 
             Age + next_election + ethnic_2 + employment_2 + 
             log(HH_Net_Income_PA) + is_redwall + Gender + 
-            $(mainvar))), dall )
+            $(mainvar))), data )
         push!( regs, reg )
         reg = lm( @eval(@formula( $(depvar) ~ 
-            Age + Gender + $( mainvar ))), dall)
+            Age + Gender + $( mainvar ))), data )
         push!( simpleregs, reg )
         reg = lm( @eval(@formula( $(depvar) ~ 
-            $( mainvar ))), dall)
+            $( mainvar ))), data )
         push!( very_simpleregs, reg )
     end 
     #
@@ -354,39 +379,39 @@ function run_regressions_by_policy(
     #
     diffregs=[]
     depvar = Symbol( "$(policy)_change")
-    reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), dall )
+    reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), data )
     push!( diffregs, reg )
     for mainvar in MAIN_EXPLANVARS
-        reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), dall )
+        reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
         push!( diffregs, reg )
     end 
     diffregs2=[]
-    reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec))), dall )
+    reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec))), data )
     push!( diffregs2, reg )
     for mainvar in MAIN_EXPLANVARS
-        reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), dall )
+        reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
         push!( diffregs2, reg )
     end 
     # 
     labels = make_labels()
-    regtable(regs...;file=joinpath("output",regdir,"actnow-$(policy)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render=HtmlTable(), labels=labels)
-    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(policy)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render=HtmlTable(), labels=labels)
-    regtable(very_simpleregs...;file=joinpath("output",regdir,"actnow-very-simple-$(policy)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render=HtmlTable(), labels=labels)
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render = HtmlTable(), labels=labels)
-    regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = PValue, render = HtmlTable(), labels=labels)
+    regtable(regs...;file=joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(very_simpleregs...;file=joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
     #
     #= ascii and latex versions of these - not needed 
     regtable(regs...;file="output/regressions/actnow-$(policy)-ols.txt",number_regressions=false, stat_below = false, render=AsciiTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
-    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
-    regtable(diffregs2...;file="output/regressions/actnow-change-$(policy)-sexless-ols.txt",number_regressions=true, stat_below = false,  below_statistic = PValue, render=AsciiTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs2...;file="output/regressions/actnow-change-$(policy)-sexless-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
     #    
-    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
-    regtable(diffregs2...;file="output/regressions/actnow-change-sexless-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = PValue, render=LatexTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs2...;file="output/regressions/actnow-change-sexless-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
     =#
 end # run_regressions_by_policy
 
@@ -410,9 +435,10 @@ down by risk of destitution, health, life ladder, etc.
 function make_big_file_by_explanvar(
     ; 
     regdir="regressions",
+    prefix :: String,
     out_file_name="all_results_by_explanvar")
 
-    io = open( joinpath("output","$(out_file_name).html"), "w")
+    io = open( joinpath("output","$(out_file_name)-$(prefix).html"), "w")
     header = """
     <!DOCTYPE html>
     <html>
@@ -453,16 +479,16 @@ function make_big_file_by_explanvar(
         println( io, "<section>")
         println( io, "<h2>Regressions - Main Explanatory Variable: $exvar </h2>")
         println( io, "<h3>Popularity of Each Policy: 1) Full Regression</h3>")
-        fn = joinpath("output",regdir,"actnow-$(mainvar)-ols.html")
+        fn = joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html")
         edit_table( io, fn )
         println( io, notes1 )
         #
         println( io, "<h3>Popularity of Each Policy: 2): Short Regressions</h3>")
-        fn = joinpath("output",regdir,"actnow-simple-$(mainvar)-ols.html")
+        fn = joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html")
         edit_table( io, fn )
         # 
         println( io, "<h3>Change in Popularity Of Each Policy: By Argument</h3>")
-        fn = joinpath("output",regdir,"actnow-change-$(mainvar)-ols.html")
+        fn = joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html")
         edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "</section>")
@@ -491,9 +517,10 @@ and graph files.
 function make_big_file_by_policy(
     ;
     regdir="regressions",
+    prefix::String,
     out_file_name="all_results_by_policy")
 
-    io = open( joinpath("output","$(out_file_name).html"), "w")
+    io = open( joinpath("output","$(out_file_name)-$(prefix).html"), "w")
     header = """
     <!DOCTYPE html>
     <html>
@@ -557,24 +584,24 @@ function make_big_file_by_policy(
         println( io, "<section>")
         println( io, "<h2>Regressions - Policy: $exvar </h2>")
         println( io, "<h3>Popularity of $prettypol: 1) Full Regression</h3>")
-        fn = joinpath("output",regdir,"actnow-$(policy)-ols.html")
+        fn = joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         println( io, notes1 )
         #
         println( io, "<h3>Popularity of $prettypol: 2): Short Regressions</h3>")
-        fn = joinpath("output",regdir,"actnow-simple-$(policy)-ols.html")
+        fn = joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         #
         println( io, "<h3>Popularity of $prettypol: 3): Very Short Regressions</h3>")
-        fn = joinpath("output",regdir,"actnow-very-simple-$(policy)-ols.html")
+        fn = joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         #
         println( io, "<h3>Change in Popularity of $prettypol: By Argument</h3>")
-        fn = joinpath("output",regdir,"actnow-change-$(policy)-ols.html")
+        fn = joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
-        fn = joinpath("output",regdir,"actnow-change-sexless-$(policy)-ols.html")
+        fn = joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "</section>")
@@ -761,18 +788,31 @@ function make_all_graphs( dall::DataFrame )
     close(io)
 end
 
-function run_regressions( dall :: DataFrame;
-    regdir = "regressions" )
+"""
+Run an absurd number of regressions. 
 
-    run_regressions_by_mainvar( dall, :x )
+*
+* 
+*  exclude_0s_and_100s
+
+"""
+function run_regressions( dall :: DataFrame;
+    regdir = "regressions",
+    exclude_0s_and_100s :: Bool  )
+
+    run_regressions_by_mainvar( dall, :x;  exclude_0s_and_100s = exclude_0s_and_100s )
     for mainvar in MAIN_EXPLANVARS
         println( "on mainvar $mainvar")
-        run_regressions_by_mainvar( dall, mainvar; regdir=regdir )
+        run_regressions_by_mainvar( 
+            dall, 
+            mainvar; 
+            regdir=regdir, 
+            exclude_0s_and_100s = exclude_0s_and_100s )
     end
 
     for policy in POLICIES
         println( "on policy $policy")
-        run_regressions_by_policy( dall, policy; regdir=regdir )
+        run_regressions_by_policy( dall, policy; regdir=regdir, exclude_0s_and_100s = exclude_0s_and_100s )
     end
 end
 
@@ -915,12 +955,12 @@ function make_summarystats( dall :: DataFrame ) :: NamedTuple
         df.change_amongst_lovers[i] = avlove_post - avlove_pre
         df.change_amongst_haters[i] = avhate_post - avhate_pre
         # OneSampleTTest
-        df.overall_p[i] = pvalue(
-            EqualVarianceTTest( dall[ !, ppost ], dall[!, ppre ] )) # paired t-test
-        df.lovers_p[i] = pvalue(
-            EqualVarianceTTest( lovers_pre[ !, ppost ], lovers_pre[!, ppre ] )) # paired t-test
-        df.haters_p[i] = pvalue(
-            EqualVarianceTTest( haters_pre[ !, ppost ], haters_pre[!, ppre ] )) # paired t-test
+        df.overall_p[i] = # ConfInt(
+            pvalue( EqualVarianceTTest( dall[ !, ppost ], dall[!, ppre ] )) # paired t-test
+        df.lovers_p[i] = # ConfInt(
+            pvalue(EqualVarianceTTest( lovers_pre[ !, ppost ], lovers_pre[!, ppre ] )) # paired t-test
+        df.haters_p[i] = # ConfInt(
+            pvalue(EqualVarianceTTest( haters_pre[ !, ppost ], haters_pre[!, ppre ] )) # paired t-test
         hs = fit(Histogram, vpre, w )
         hsp = AlgebraOfGraphics.plot( hs )
         hsp = algdata * 
@@ -1179,7 +1219,6 @@ function kmo_test( m :: AbstractMatrix )
         not_i_or_j = filter( k -> ! (k in [i,j]), first:last )
         return partialcor( m[i,:], m[j,:], m[not_i_or_j,:]')
     end
-
     ps = 0.0
     cs = 0.0
     # The m[:,begin] bits are just sillyness for non 1-based arrays.
@@ -1273,7 +1312,7 @@ function summarise_pca(
         file=joinpath("output",regdir,"pca-1$(extension).html"),
         number_regressions=true, 
         stat_below = false,  
-        below_statistic = PValue, 
+        below_statistic = ConfInt, 
         render=HtmlTable())
     regstr = read(joinpath("output",regdir,"pca-1$(extension).html"), String)
 

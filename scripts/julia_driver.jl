@@ -17,7 +17,8 @@ wave4, M_pre, data_pre, prediction_pre, M_change, data_change, prediction_change
 # 
 make_and_print_summarystats( wave4 )
 
-run_regressions( wave4 )
+run_regressions( wave4, exclude_0s_and_100s = false )
+run_regressions( wave4, exclude_0s_and_100s = true )
 
 # println 
 make_all_graphs( wave4 )
@@ -29,10 +30,12 @@ images, summary stats and regressions created above
 
 =#
 # writes to `output/all_results_by_policy.html`
-make_big_file_by_policy()
-
+make_big_file_by_policy( prefix = "fullsample")
+make_big_file_by_policy( prefix = "extremes_excluded" )
+   
 # writes to `output/all_results_by_explanvar.html`
-make_big_file_by_explanvar()
+make_big_file_by_explanvar(prefix = "fullsample")
+make_big_file_by_explanvar(prefix = "extremes_excluded")
 #
 #
 # create and write pca analysis 
