@@ -66,13 +66,17 @@ Output goes to `output`, not unreasonably. Subdirs:
 * `regressions` - raw linear regression output created with [Regression Tables](https://github.com/jmboehm/RegressionTables.jl).
 * `regressions_w3_w4`
 
-## R SEM Model
+## The SEM Model
 
-Is in `R`. Should install packages and run with any R 4.xxx. The file `R/sem-model.R` creates the SEM model. Start an R session in the root directory of the ActNow project and include the file with:
+The SEM model is implemented in `R` using the file file `R/sem-model.R`. You should be able to install the required packages and run the script with any R 4.x. 
+
+Start an R session in the root directory of the ActNow project and include the file with:
 
     source( "R/sem_model.R")
 
-The R script should write text files to `output` and `.pdf` diagrams to `output\img\`. Note there are a bunch of `install.libraries` commands at the top which need to be run at most once. 
+The R script should write text files to `output` and write `.pdf` format diagrams to `output\img\`. 
+
+Note there are a bunch of `install.libraries` commands at the top of the script which need to be run at most once. 
 
 
 
