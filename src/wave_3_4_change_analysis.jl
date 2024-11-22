@@ -438,8 +438,6 @@ function do_fixed_effects( stacked :: DataFrame ) :: Vector
 
     regtable( regs...;file="output/fixed-effect-regs.html",number_regressions=true, stat_below = false, render=HtmlTable(), below_statistic = TStat )
     regtable( regs...;file="output/fixed-effect-regs-w-tstats.txt",number_regressions=true, stat_below = true, render=AsciiTable(), below_statistic = TStat )
-    # regtable( regs...;file="output/fixed-effect-regs-2.txt",number_regressions=true, stat_below = true, render=AsciiTable(), below_statistic = PValue )
     regtable( regs...;file="output/fixed-effect-regs-w-confints.txt",number_regressions=true, stat_below = true, render=AsciiTable(), below_statistic = ConfInt )
-
-    regs
+    return regs
 end
