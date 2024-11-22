@@ -318,7 +318,7 @@ function run_regressions_by_mainvar(
     regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
     regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
     regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
-    #= unneeded ascii/latex versions
+    #= unneeded ascii/latex versions 
     regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.txt",number_regressions=false, stat_below = false, render=AsciiTable(), labels=labels)
     regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
     regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)

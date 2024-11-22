@@ -56,8 +56,8 @@ joined, stacked, skips = joinv3v4( wave3, wave4 )
 #
 # optionally, save joined data
 #
-# CSV.write( "$(DATA_DIR)/v3_v4_joined.tab", joined; delim='\t' )
-# CSV.write( "$(DATA_DIR)/v3_v4_stacked.tab", stacked; delim='\t' )
+CSV.write( "$(DATA_DIR)/v3_v4_joined.tab", joined; delim='\t' )
+CSV.write( "$(DATA_DIR)/v3_v4_stacked.tab", stacked; delim='\t' )
 # CSV.write( "$(DATA_DIR)/national-w-created-vars.tab", wave4; delim='\t'  )
 
 #
@@ -67,6 +67,7 @@ summaries, counts_joined, counts_all = analyse_w3_w4_changes(
     joined, wave3, wave4 )
 # ... written to `output/v3-v4-insert.md`
 make_w3_w4_change_page( summaries, counts_joined, counts_all )
+
 # regs = do_mixed_regressons( stacked )
 
 # oregs = do_delta_regs( joined, skips )
