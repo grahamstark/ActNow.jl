@@ -22,8 +22,8 @@ using
     RegressionTables,
     StatsBase,
     StructuralEquationModels,
-    SurveyDataWeighting,
-    Tidier
+    SurveyDataWeighting
+    # Tidier # check: is this still used? It's huge.
 
 import Luxor:Point # disambiguation
 import Luxor:Table
