@@ -5,6 +5,7 @@ Pkg.activate( ".")
 Pkg.update()
 using Revise
 using ActNow
+using CSV, DataFrames
 #
 # to replicate creating the Wave4 dataset with added variables, run the next line
 #
