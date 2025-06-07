@@ -330,7 +330,7 @@ function do_delta_regs( joined :: DataFrame, toskip_logs :: Set ) :: Vector
     push!( regs, lm( f5, goodj ) )
     f6 = @formula( Δ_log_basic_income_post ~ 1 +  Δ_log_At_Risk_of_Destitution )
     push!( regs, lm( f6, goodj ) )
-    regtable(regs[1:5]...;file="output/deltaregs-ols.html",number_regressions=true, stat_below = false, render=HtmlTable(), below_statistic = TStat )
+    regtable(regs[1:5]...;file="output/deltaregs-ols.html",number_regressions=true, stat_below=true, render=HtmlTable(), below_statistic = TStat )
     regs
 end
 
@@ -436,7 +436,7 @@ function do_fixed_effects( stacked :: DataFrame ) :: Vector
     f = @formula(basic_income_post ~ HH_Net_Income_PA  + trust_in_politics + fe( PROLIFIC_PID ))
     push!( regs, reg( stacked, f ))
 
-    regtable( regs...;file="output/fixed-effect-regs.html",number_regressions=true, stat_below = false, render=HtmlTable(), below_statistic = TStat )
+    regtable( regs...;file="output/fixed-effect-regs.html",number_regressions=true, stat_below=true, render=HtmlTable(), below_statistic = TStat )
     regtable( regs...;file="output/fixed-effect-regs-w-tstats.txt",number_regressions=true, stat_below = true, render=AsciiTable(), below_statistic = TStat )
     regtable( regs...;file="output/fixed-effect-regs-w-confints.txt",number_regressions=true, stat_below = true, render=AsciiTable(), below_statistic = ConfInt )
     return regs
