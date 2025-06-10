@@ -315,16 +315,16 @@ function run_regressions_by_mainvar(
         push!( diffregs, reg )
     end 
     labels = make_labels()
-    regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
-    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
+    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
+    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
     #= unneeded ascii/latex versions 
-    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.txt",number_regressions=false, stat_below = false, render=AsciiTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
-    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.txt",number_regressions=false, stat_below=true, render=AsciiTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(mainvar)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(mainvar)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(mainvar)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
     =#
 end # run_regressions_by_mainvar
 
@@ -394,24 +394,24 @@ function run_regressions_by_policy(
     end 
     # 
     labels = make_labels()
-    regtable(regs...;file=joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
-    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
-    regtable(very_simpleregs...;file=joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
-    regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below = false,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    regtable(regs...;file=joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(very_simpleregs...;file=joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
+    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
     #
     #= ascii and latex versions of these - not needed 
-    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.txt",number_regressions=false, stat_below = false, render=AsciiTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
-    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
-    regtable(diffregs2...;file="output/regressions/actnow-change-$(policy)-sexless-ols.txt",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.txt",number_regressions=false, stat_below=true, render=AsciiTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
+    regtable(diffregs2...;file="output/regressions/actnow-change-$(policy)-sexless-ols.txt",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=AsciiTable(), labels=labels)
     #    
-    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
-    regtable(diffregs2...;file="output/regressions/actnow-change-sexless-$(policy)-ols.tex",number_regressions=true, stat_below = false,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(regs...;file="output/regressions/actnow-$(policy)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(simpleregs...;file="output/regressions/actnow-simple-$(policy)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(very_simpleregs...;file="output/regressions/actnow-very-simple-$(policy)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs...;file="output/regressions/actnow-change-$(policy)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
+    regtable(diffregs2...;file="output/regressions/actnow-change-sexless-$(policy)-ols.tex",number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=LatexTable(), labels=labels)
     =#
 end # run_regressions_by_policy
 
@@ -1311,7 +1311,7 @@ function summarise_pca(
         regs...;
         file=joinpath("output",regdir,"pca-1$(extension).html"),
         number_regressions=true, 
-        stat_below = false,  
+        stat_below=true,  
         below_statistic = ConfInt, 
         render=HtmlTable())
     regstr = read(joinpath("output",regdir,"pca-1$(extension).html"), String)
