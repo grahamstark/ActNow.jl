@@ -40,8 +40,10 @@ export DATA_DIR,
     make_big_file_by_explanvar,
     make_big_file_by_policy,
     make_w3_w4_change_page,
+    pretty,
     run_regressions,
     summarise_pca
+    
 
 const DATA_DIR="data/"
 
