@@ -1,9 +1,7 @@
 
-using ActNow,DataFrames,CSV
+using ActNow,DataFrames,CSV,StatsBase
 
 const DD = "/mnt/data/ActNow/Surveys/v2/"
-energy = CSV.File("$(DD)/energy-conjoint.tab";delim='\t')|>DataFram
-transport = CSV.File("$(DD)/Transport Act Now Conjoint_23 February 2024_13.39_numeric_values.csv";delim=',')|>DataFrame
 
 
 RENAMES_ENERGY = Dict([
@@ -71,10 +69,11 @@ RENAMES_ENERGY = Dict([
     "Q8.22_6"=>"Shouldnt_Rely_On_Government",
     "Q9.1"=>"Feedback" ])
 
-rename!( energy, RENAMES_ENERGY )
+# rename!( energy, RENAMES_ENERGY )
 
 
 RENAMES_TRANSPORT=([
+    #=
     "Q6.1_4"=>"Transport_General_Pre",
     "Q7.1_4"=>"Absolute_Pre",
     "Q8.1_4"=>"Absolute_Argument",
@@ -82,6 +81,8 @@ RENAMES_TRANSPORT=([
     "Q10.1_4"=>"Relative_Argument",
     "Q11.1_4"=>"Security_Pre",
     "Q12.1_4"=>"Security_Argument",
+    =#
+
     "Q13.2"=>"Age",
     "Q13.3"=>"Gender",
     "Q13.3_3_TEXT"=>"Gender_Other",
@@ -109,7 +110,7 @@ RENAMES_TRANSPORT=([
     "Q13.19"=>"Voting",
     "Q13.20"=>"Party_Last_Election",
     "Q13.20_7_TEXT"=>"Party_Last_Election_Other",
-    "Q13.21"=>"Party_Next_Election",
+    "Q13.21"=>"Party_Mayoral_Election",
     "Q13.22_1"=>"Politicians_All_The_Same",
     "Q13.22_2"=>"Politics_Force_For_Good",
     "Q13.22_3"=>"Party_In_Government_Doesnt_Matter",
@@ -118,5 +119,318 @@ RENAMES_TRANSPORT=([
     "Q13.22_6"=>"Shouldnt_Rely_On_Government",
     "Q14.1"=>"Feedback"])
 
-rename!( transport, RENAMES_TRANSPORT)
+"""
+return 30 (most) .. 1 least 
+"""
+function i_build_trust( r :: DataFrameRow )::Int
+    trust = 0
+    for t in ActNow.TRUST_POL
+        tl = r[t]
+        @assert typeof( tl ) <: Integer "type not int $(typeof(tl)) col = $t"
+        if t in ["Politics_Force_For_Good","Politicians_Want_To_Make_Things_Better"]
+            tl = 5 - tl
+        end
+        trust += tl 
+    end
+    trust = 30-trust
+    @assert trust in 1:30 "trust out of range $trust"
+    return trust  # 24 (4x6) is most trusting ... 
+end
+
+# NOT USED
+function i_health_score( p :: DataFrameRow, keys... )::Union{Int,Missing}
+
+    function map_one( s :: AbstractString )::Int
+        findfirst(x->x==s,DEPLEVELS) - 1 
+    end
+
+    i = 0
+    for k in keys
+        if ismissing(p[k])
+            return missing
+        end
+        i += map_one( p[k])
+    end
+    return i
+end
+
+function recode_mayoral( party :: Integer; condensed :: Bool ) :: String
+    d = if ismissing( party )
+        ("No Vote/DK/Refused","Other")
+    elseif party in [1] # ["Conservative Party"]
+        ("Conservative", "Conservative")
+    elseif party in [4] # ["Green Party", "Plaid Cymru", "Scottish National Party"]
+        ("Nat/Green","Other")
+    elseif party in [12] # ["Labour Party"]
+        ("Labour","Labour")
+    elseif party in [5] # ["Liberal Democrats"]
+        ("LibDem","Other")
+    elseif party in [2] # ["Other (please name below)", "Independent candidate","Brexit Party"]
+        ("Other/Brexit","Other")
+    elseif party in [3]
+        ("Driscoll","Other")
+    elseif party in [9,13,11,10] 
+        ("No Vote/DK/Refused","Other")
+    else
+        @assert false "unassigned party $party"
+    end
+    return condensed ? d[2] : d[1]
+
+end
+
+"""
+FIXME mess
+"""
+function recode_party( party :: Integer; condensed :: Bool ) :: String
+    d = if ismissing( party )
+        ("No Vote/DK/Refused","Other")
+    elseif party in [2] # ["Conservative Party"]
+        ("Conservative", "Conservative")
+    elseif party in [11,3,12] # ["Green Party", "Plaid Cymru", "Scottish National Party"]
+        ("Nat/Green","Other")
+    elseif party in [4] # ["Labour Party"]
+        ("Labour","Labour")
+    elseif party in [5] # ["Liberal Democrats"]
+        ("LibDem","Other")
+    elseif party in [1,6] # ["Other (please name below)", "Independent candidate","Brexit Party"]
+        ("Other/Brexit","Other")
+    elseif party in [7,8,9,10] 
+        ("No Vote/DK/Refused","Other")
+    else
+        @assert false "unassigned party $party"
+    end
+    return condensed ? d[2] : d[1]
+end
+
+
+function recode_employment( employment :: Integer ) :: String
+    return if employment in [5,6,7,8,12]
+        "Working/SE Inc. Part-Time"
+    elseif employment in [1,4,9,10,11,13,14,15]
+        "Not Working, Inc. Retired/Caring/Student"
+    else
+        @assert false "unmapped employment $employment"
+    end
+end
+
+function load_energy()
+    energy = CSV.File("$(DD)/energy-conjoint.tab";delim='\t', skipto=3)|>DataFram
+    rename!( energy, RENAMES_ENERGY)
+end 
+
+function load_transport()
+    transport = CSV.File("$(DD)/Transport Act Now Conjoint_23 February 2024_13.39_numeric_values.csv";delim=',', skipto=4)|>DataFrame
+    transport.destitute = transport."Q13.9_1".>= 70                
+    ActNow.create_one!( transport; 
+        label="transport", 
+        initialq="Q6.1_4", 
+        finalq="Q12.1_4", 
+        treatqs=["Q7.1_4","Q8.1_4","Q9.1_4","Q10.1_4", "Q11.1_4"])
+    rename!( transport, RENAMES_TRANSPORT)
+    transport = transport[(.! ismissing.(transport.HH_Net_Income_PA )) .& (transport.HH_Net_Income_PA .> 0),:]
+    transport = transport[(.! ismissing.(transport.Politicians_All_The_Same )),:] # 2 missing
+    transport = transport[(.! ismissing.(transport.Employment_Status )),:] # 2 missing
+    n = size(transport)[1]
+    transport.HH_Net_Income_PA .= ActNow.recode_income.( transport.HH_Net_Income_PA)
+    transport.ethnic_2 = ActNow.recode_ethnic.( transport.Ethnic )
+    transport.last_election = recode_party.( transport.Party_Last_Election, condensed=false )
+    transport.last_election = recode_party.( transport.Party_Last_Election, condensed=false )
+    transport.last_election_condensed = recode_party.( transport.Party_Last_Election, condensed=true  )
+    transport.mayoral_election = recode_mayoral.( transport.Party_Mayoral_Election, condensed=false )
+    transport.mayoral_election_condensed = recode_mayoral.( transport.Party_Mayoral_Election, condensed=true )
+    transport.next_election = transport.mayoral_election 
+    transport.poorhealth = transport.General_Health .∈ ([6,7],)
+    transport.unsatisfied_with_income = transport.Satisfied_With_Income .∈ ([1,2,3],)
+    transport.Owner_Occupier = transport.Owner_Occupier .== 1
+    transport.down_the_ladder = transport.Ladder .<= 4
+    transport.not_managing_financially = transport.Managing_Financially  .∈ ([4,5],)
+    # transport.gad_7 = i_health_score.(eachrow(transport), ActNow.GAD_7...) <- GAD_7 vars missing
+    # transport.phq_8  =  i_health_score.(eachrow(transport), ActNow.PHQ_8...)
+    transport.weight = ones( n )
+    transport.probability_weight = ProbabilityWeights(transport.weight./sum(transport.weight))
+    transport.is_redwall .= false
+
+    transport.employment_2 = recode_employment.(transport.Employment_Status)
+    transport.log_income = log.(transport.HH_Net_Income_PA)
+    transport.age_sq = transport.Age .^2
+    transport.Gender = ActNow.recode_gender.( transport.Gender )
+    transport.trust_in_politics = i_build_trust.( eachrow( transport ))
+
+    CSV.write( joinpath( DD, "transport-w-created-vars.tab"), transport; delim='\t')
+    return transport
+end
+
+
+
+function score_summarystats( transport :: DataFrame ) :: DataFrame
+    n = length( POLICIES )*3
+    df = DataFrame(
+        name = fill("",n),
+        subname = fill("",n),
+        relgains_mean= zeros(n),
+        relgains_median = zeros(n),
+        security_mean= zeros(n),
+        security_median = zeros(n),
+        absgains_mean= zeros(n),
+        absgains_median = zeros(n),
+        other_argument_mean= zeros(n),
+        other_argument_median = zeros(n))
+    i = 0
+    p = :transport
+    for group in ["All","Lovers","Haters"]
+        i += 1
+        ppre = Symbol("$(p)_pre")
+        vpre = transport[!,ppre]
+        ppost = Symbol("$(p)_post")
+        vpost = transport[!,ppost]                
+        transportg = if group == "All"
+            transport
+        elseif group == "Lovers"
+            transport[vpre .> 70, : ]
+        elseif group == "Haters"
+            transport[vpre .< 30, : ]
+        end
+        for t in TREATMENT_TYPES
+            k = Symbol( "$(p)_treat_$(t)_score" ) # e.g. :basic_income_treat_absgains_score
+            subd = transportg[ .! ismissing.(transportg[!,k]),[k,:probability_weight]] # e.g. just those reporting a score for politics, absgains argument, and so on
+            subd.probability_weight = ProbabilityWeights( subd.probability_weight )
+            a = mean( subd[!,k], subd.probability_weight )
+            println( "$k = a=$a")
+            m = median( Float64.(subd[!,k]), subd.probability_weight )
+            println( "m = $m")
+            ak = Symbol( "$(t)_mean")
+            mk = Symbol( "$(t)_median")
+            df[i,:name] = lpretty(p) 
+            df[i,:subname] = group
+            df[i,ak] = a
+            df[i,mk] = m
+        end
+    end
+    rename!( df, lpretty.( names( df )))
+    df
+end
+
+function do_all()
+    transport = load_transport()
+    ActNow.run_regressions_by_policy(
+        transport,
+        :transport;
+        exclude_0s_and_100s = false,
+        regdir = "regressions/v2/")
+    summdf = score_summarystats( transport ) 
+end
+
+"""
+
+Makes `output/all_results_by_policy.html`, a big file summarising
+main wave 4 results, organised by each policy area.
+
+`run_regressions()` and `make_and_print_summarystats()` need to
+have been run beforehand and the `output` directory filled with regressiona
+and graph files. 
+
+"""
+function make_big_file_by_policy(
+    ;
+    regdir="regressions",
+    prefix::String,
+    out_file_name="all_results_by_policy")
+
+    io = open( joinpath("output","$(out_file_name)-$(prefix).html"), "w")
+    header = """
+    <!DOCTYPE html>
+    <html>
+    <title>Act Now Main Regression Library</title>
+    <link rel="stylesheet" href="css/bisite-bootstrap.css"/>
+    <body class='text-primary p-2'>
+    <h1>Act Now Main Regression Library</h1>
+    <p>
+    These are .. 
+    </p>
+    <p>
+    NOTE: The summary statistics use weighted data. Regressions use unweighted data.
+    </p>
+    <h3>Contents</h3>
+    <ul>
+        <li><a href='#summary'>Summary Statistics</a>
+        <li><a href='#regressions'>Regressions</a>
+        <li><a href='#chart-gallery'>Charts of Popularity of each policy</a>
+    </ul>
+    """
+    footer = """
+    <footer>
+
+    </footer>
+    </body>
+    </html>
+    """
+    println(io, header)
+
+    println(io, "<section id='summary'>")
+    println( io, "<h2>Summary Statistics</h2>")
+    lines = readlines("output/summary_stats.html")
+    for l in lines
+        println( io, l )
+    end
+    println(io,"</section'>")
+    println(io, "<h2 id='regressions'>Regressions: by Policy</h2>")
+    for policy in []
+        prettypol = lpretty( policy )
+        exvar = prettypol * " (Before Explanation)"
+        # exvar = MAIN_EXPLANDICT[Symbol(mainvar)]
+        notes1 = """
+        <p>p- values in parenthesis.
+        Results are relative to:
+        </p>
+        <ul>
+            <li>vote next election: Conservative;</li>
+            <li>Not Working;</li>
+            <li>Female;</li>
+            <li>Main explanatory variable (last variable in each regression)<strong>False</strong></li>
+        </ul>
+        """
+        notes2 = """
+        <p>p- values in parenthesis. 
+        Results are Relative to:
+        <ul>
+            <li>Shown Absolute Gains Argument;</li>
+            <li>Main explanatory variable (last variable in each regression)<strong>False</strong></li>
+        </ul>
+        """    
+        println( io, "<section>")
+        println( io, "<h2>Regressions - Policy: $exvar </h2>")
+        println( io, "<h3>Popularity of $prettypol: 1) Full Regression</h3>")
+        fn = joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html")
+        edit_table( io, fn )
+        println( io, notes1 )
+        #
+        println( io, "<h3>Popularity of $prettypol: 2): Short Regressions</h3>")
+        fn = joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
+        edit_table( io, fn )
+        #
+        println( io, "<h3>Popularity of $prettypol: 3): Very Short Regressions</h3>")
+        fn = joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
+        edit_table( io, fn )
+        #
+        println( io, "<h3>Change in Popularity of $prettypol: By Argument</h3>")
+        fn = joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
+        edit_table( io, fn )    
+        println(io, notes2 )    
+        println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
+        fn = joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
+        edit_table( io, fn )    
+        println(io, notes2 )    
+        println( io, "</section>")
+    end
+    println(io, "<section id='chart-gallery'>")
+    println( io, "<h2>Image Gallery</h2>")
+    lines = readlines("output/image-index.html")
+    for l in lines
+        println( io, l )
+    end
+    println(io,"</section>")
+    println( io, footer )
+    close(io)
+end
+
 

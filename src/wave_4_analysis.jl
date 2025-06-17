@@ -361,18 +361,21 @@ function run_regressions_by_policy(
     push!( regs, reg )
         reg = lm( @eval(@formula( $(depvar) ~ Age + Gender )), data )
     push!( simpleregs, reg )
+    nms = Symbol.(names( dall ))
     for mainvar in MAIN_EXPLANVARS
-        reg = lm( @eval(@formula( $(depvar) ~ 
-            Age + next_election + ethnic_2 + employment_2 + 
-            log(HH_Net_Income_PA) + is_redwall + Gender + 
-            $(mainvar))), data )
-        push!( regs, reg )
-        reg = lm( @eval(@formula( $(depvar) ~ 
-            Age + Gender + $( mainvar ))), data )
-        push!( simpleregs, reg )
-        reg = lm( @eval(@formula( $(depvar) ~ 
-            $( mainvar ))), data )
-        push!( very_simpleregs, reg )
+        if mainvar in nms
+            reg = lm( @eval(@formula( $(depvar) ~ 
+                Age + next_election + ethnic_2 + employment_2 + 
+                log(HH_Net_Income_PA) + is_redwall + Gender + 
+                $(mainvar))), data )
+            push!( regs, reg )
+            reg = lm( @eval(@formula( $(depvar) ~ 
+                Age + Gender + $( mainvar ))), data )
+            push!( simpleregs, reg )
+            reg = lm( @eval(@formula( $(depvar) ~ 
+                $( mainvar ))), data )
+            push!( very_simpleregs, reg )
+        end
     end 
     #
     # regression of change in popularity of each policy against each explanation
@@ -382,15 +385,19 @@ function run_regressions_by_policy(
     reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), data )
     push!( diffregs, reg )
     for mainvar in MAIN_EXPLANVARS
-        reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
-        push!( diffregs, reg )
+        if mainvar in nms
+            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
+            push!( diffregs, reg )
+        end
     end 
     diffregs2=[]
     reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec))), data )
     push!( diffregs2, reg )
     for mainvar in MAIN_EXPLANVARS
-        reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
-        push!( diffregs2, reg )
+        if mainvar in nms
+            reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
+            push!( diffregs2, reg )
+        end
     end 
     # 
     labels = make_labels()

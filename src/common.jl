@@ -556,9 +556,27 @@ function recode_ethnic( ethnic :: AbstractString ) :: String
     return ethnic == "1. English, Welsh, Scottish, Northern Irish or British" ? "Ethnic British" : "Other Ethnic" 
 end
 
+function recode_ethnic( ethnic :: Integer ) :: String
+    return ethnic == 1 ? "Ethnic British" : "Other Ethnic" 
+end
+
+
 function recode_gender( gender :: AbstractString )::String 
     # println("recode gender $gender")
     return gender in ["Male","Female"] ? gender : "Other"
+end
+
+function recode_gender( gender :: Int )::String 
+    # println("recode gender $gender")
+    return if gender == 1 
+        "Male"
+    elseif gender == 2 
+        "Female"
+    elseif gender == 3 
+        "Other"
+    else
+        @assert false "undefined gender $gender"
+    end
 end
 
 function map_Managing_Financially( s :: AbstractString ) :: Int 
