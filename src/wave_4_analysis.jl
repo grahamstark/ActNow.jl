@@ -824,8 +824,8 @@ function run_regressions( dall :: DataFrame;
 end
 
 
-function score_summarystats( dall :: DataFrame ) :: DataFrame
-    n = length( POLICIES )*3
+function score_summarystats( dall :: DataFrame, policies ) :: DataFrame
+    n = length( policies )*3
     df = DataFrame(
         name = fill("",n),
         subname = fill("",n),
@@ -838,7 +838,7 @@ function score_summarystats( dall :: DataFrame ) :: DataFrame
         other_argument_mean= zeros(n),
         other_argument_median = zeros(n))
     i = 0
-    for p in POLICIES
+    for p in policies
         for group in ["All","Lovers","Haters"]
             i += 1
             ppre = Symbol("$(p)_pre")
@@ -876,7 +876,7 @@ end
 """
 Make a pile of summary statistics and histograms
 """
-function make_summarystats( dall :: DataFrame ) :: NamedTuple
+function make_summarystats( dall :: DataFrame, policies = POLICIES ) :: NamedTuple
     n = 100
     # haters - scoring pre below 30; lovers scoring over 70 pre
     df = DataFrame( 
@@ -915,7 +915,7 @@ function make_summarystats( dall :: DataFrame ) :: NamedTuple
     plots = Dict()
     hists = Dict()
     algdata = AlgebraOfGraphics.data(dall)
-    for p in vcat(POLICIES,:overall) # add an overall col 
+    for p in policies # add an overall col 
         i += 1
         ppost = Symbol("$(p)_post")
         vpost = dall[!,ppost]                
@@ -980,7 +980,7 @@ function make_summarystats( dall :: DataFrame ) :: NamedTuple
         df.nhaters_post[i] = nhaters_post
         df.nlovers_post[i] = nlovers_post
     end
-    println( POLICIES )
+    println( policies)
     df.average_change = df.mean_post - df.mean_pre
     #
     # hacked overall summary - set pre vars all to zero
@@ -990,8 +990,10 @@ function make_summarystats( dall :: DataFrame ) :: NamedTuple
         :avhate_pre, :nhaters_pre, :nlovers_pre, :average_change]] .= 0.0
     discretevars = []
     non_discretevars = []
-    for p in SUMMARY_VARS
-        v = dall[!,Symbol(p)]
+    nms = intersect( SUMMARY_VARS, names(dall))
+    for p in nms
+        sp = Symbol(p)
+        v = dall[!,sp]
         if eltype( v ) <: Number
             push!( non_discretevars, p )
             i += 1
@@ -1011,13 +1013,16 @@ function make_summarystats( dall :: DataFrame ) :: NamedTuple
             plots[p] = draw(barc)
         end
     end
-    correlations, pvals, degrees_of_freedom = corrmatrix( dall, POLICIES )
-    scores = score_summarystats( dall  )
+    correlations, pvals, degrees_of_freedom = corrmatrix( dall, policies )
+    scores = score_summarystats( dall, policies  )
     (; summarystats = df[1:i,:], plots, hists, correlations, discretevars, non_discretevars, pvals, degrees_of_freedom, scores )
 end
 
+"""
+
+"""
 function make_and_print_summarystats( dall :: DataFrame )
-    d = make_summarystats( dall )
+    d = make_summarystats( dall, vcat(POLICIES,:overall) )
     io = open( "output/summary_stats.html", "w")
     println( io, "<h3>Summary Statistics</h3>")
     t = pretty_table( 
@@ -1128,7 +1133,7 @@ function make_and_print_summarystats( dall :: DataFrame )
     end
     println( io, "</div>")    
     close( io )
-end
+end # make and print summarystats
 
 """
 dall - 

@@ -1,5 +1,5 @@
 
-using ActNow,DataFrames,CSV,StatsBase
+using ActNow,DataFrames,CSV,StatsBase,PrettyTables,CairoMakie
 
 const DD = "/mnt/data/ActNow/Surveys/v2/"
 
@@ -227,9 +227,13 @@ function load_transport()
         finalq="Q12.1_4", 
         treatqs=["Q7.1_4","Q8.1_4","Q9.1_4","Q10.1_4", "Q11.1_4"])
     rename!( transport, RENAMES_TRANSPORT)
+    transport = transport[transport.Finished .== 1,:] # 2 missing
+    transport = transport[(.! ismissing.(transport.transport_pre )),:] # 2 missing
     transport = transport[(.! ismissing.(transport.HH_Net_Income_PA )) .& (transport.HH_Net_Income_PA .> 0),:]
     transport = transport[(.! ismissing.(transport.Politicians_All_The_Same )),:] # 2 missing
     transport = transport[(.! ismissing.(transport.Employment_Status )),:] # 2 missing
+    transport = transport[(.! ismissing.(transport.transport_post )),:] # 2 missing
+    transport = transport[(.! ismissing.(transport.transport_pre )),:] # 2 missing
     n = size(transport)[1]
     transport.HH_Net_Income_PA .= ActNow.recode_income.( transport.HH_Net_Income_PA)
     transport.ethnic_2 = ActNow.recode_ethnic.( transport.Ethnic )
@@ -255,59 +259,10 @@ function load_transport()
     transport.age_sq = transport.Age .^2
     transport.Gender = ActNow.recode_gender.( transport.Gender )
     transport.trust_in_politics = i_build_trust.( eachrow( transport ))
-
+    transport.transport_pre = Real.( transport.transport_pre )
+    transport.transport_post = Real.( transport.transport_post )
     CSV.write( joinpath( DD, "transport-w-created-vars.tab"), transport; delim='\t')
     return transport
-end
-
-
-
-function score_summarystats( transport :: DataFrame ) :: DataFrame
-    n = length( POLICIES )*3
-    df = DataFrame(
-        name = fill("",n),
-        subname = fill("",n),
-        relgains_mean= zeros(n),
-        relgains_median = zeros(n),
-        security_mean= zeros(n),
-        security_median = zeros(n),
-        absgains_mean= zeros(n),
-        absgains_median = zeros(n),
-        other_argument_mean= zeros(n),
-        other_argument_median = zeros(n))
-    i = 0
-    p = :transport
-    for group in ["All","Lovers","Haters"]
-        i += 1
-        ppre = Symbol("$(p)_pre")
-        vpre = transport[!,ppre]
-        ppost = Symbol("$(p)_post")
-        vpost = transport[!,ppost]                
-        transportg = if group == "All"
-            transport
-        elseif group == "Lovers"
-            transport[vpre .> 70, : ]
-        elseif group == "Haters"
-            transport[vpre .< 30, : ]
-        end
-        for t in TREATMENT_TYPES
-            k = Symbol( "$(p)_treat_$(t)_score" ) # e.g. :basic_income_treat_absgains_score
-            subd = transportg[ .! ismissing.(transportg[!,k]),[k,:probability_weight]] # e.g. just those reporting a score for politics, absgains argument, and so on
-            subd.probability_weight = ProbabilityWeights( subd.probability_weight )
-            a = mean( subd[!,k], subd.probability_weight )
-            println( "$k = a=$a")
-            m = median( Float64.(subd[!,k]), subd.probability_weight )
-            println( "m = $m")
-            ak = Symbol( "$(t)_mean")
-            mk = Symbol( "$(t)_median")
-            df[i,:name] = lpretty(p) 
-            df[i,:subname] = group
-            df[i,ak] = a
-            df[i,mk] = m
-        end
-    end
-    rename!( df, lpretty.( names( df )))
-    df
 end
 
 function do_all()
@@ -316,7 +271,7 @@ function do_all()
         transport,
         :transport;
         exclude_0s_and_100s = false,
-        regdir = "regressions/v2/")
+        regdir = "v2/regressions/")
     summdf = score_summarystats( transport ) 
 end
 
@@ -368,13 +323,13 @@ function make_big_file_by_policy(
 
     println(io, "<section id='summary'>")
     println( io, "<h2>Summary Statistics</h2>")
-    lines = readlines("output/summary_stats.html")
+    lines = readlines("output/v2/summary_stats.html")
     for l in lines
         println( io, l )
     end
     println(io,"</section'>")
     println(io, "<h2 id='regressions'>Regressions: by Policy</h2>")
-    for policy in []
+    for policy in [:transport]
         prettypol = lpretty( policy )
         exvar = prettypol * " (Before Explanation)"
         # exvar = MAIN_EXPLANDICT[Symbol(mainvar)]
@@ -383,7 +338,7 @@ function make_big_file_by_policy(
         Results are relative to:
         </p>
         <ul>
-            <li>vote next election: Conservative;</li>
+            <li>vote Mayoral election: Conservative;</li>
             <li>Not Working;</li>
             <li>Female;</li>
             <li>Main explanatory variable (last variable in each regression)<strong>False</strong></li>
@@ -400,24 +355,24 @@ function make_big_file_by_policy(
         println( io, "<section>")
         println( io, "<h2>Regressions - Policy: $exvar </h2>")
         println( io, "<h3>Popularity of $prettypol: 1) Full Regression</h3>")
-        fn = joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output","v2",regdir,"actnow-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         println( io, notes1 )
         #
         println( io, "<h3>Popularity of $prettypol: 2): Short Regressions</h3>")
-        fn = joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output","v2",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         #
         println( io, "<h3>Popularity of $prettypol: 3): Very Short Regressions</h3>")
-        fn = joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output","v2",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )
         #
         println( io, "<h3>Change in Popularity of $prettypol: By Argument</h3>")
-        fn = joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output","v2",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
-        fn = joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output","v2",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
         edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "</section>")
@@ -434,3 +389,118 @@ function make_big_file_by_policy(
 end
 
 
+function tra_make_and_print_summarystats( dall :: DataFrame )
+    d = ActNow.make_summarystats( dall, [:transport] )
+    io = open( "output/v2/summary_stats.html", "w")
+    println( io, "<h3>Summary Statistics</h3>")
+    t = pretty_table( 
+        io,
+        d.summarystats; 
+        formatters=( ActNow.pform, ActNow.form ), 
+        header = ( [
+            "Variable",
+            "Mean (Before)",
+            "Median (Before)",
+            "Standard Deviation (Before)",
+            "Mean (After)",
+            "Median (After)",
+            "Average Change In Score",   
+            "(p)", 
+            "Policy Lovers (Before Score Over 70): Av Score",        
+            "Policy Haters (Before Score Under 30): Av Score",        
+            "Lovers - % (Before)",
+            "Haters - % (Before)",
+            "Lovers - % (After)",
+            "Haters - % (After)",
+            "Lovers Average Score (After)",
+            "Haters Average Score (After)",
+            "Lovers - Average Change in Score",
+            "(p)", 
+            "Haters - Average Change in Score",
+            "(p)",
+            "0 scores % (Before)",
+            "100 scores % (Before)",
+            "0 scores % (After)",
+            "100 scores % (After)"] ),
+        table_class="table table-sm table-striped table-responsive", 
+        backend = Val(:html))
+    println( io, "<p><em>Note - p-values are for difference in pre-post mean scores - pairwise tests give smaller p- values.</em></p>")    
+    #=
+    ,
+    "Principal Component #1 (PC1)",
+    "PC2",
+    "PC3"
+    =#
+    println( io, "<h3>Scores for Each Policy Argument</h3>")    
+    t = pretty_table( 
+        io,
+        d.scores; 
+        formatters=( ActNow.form ), 
+        table_class="table table-sm table-striped  table-responsive", 
+        backend = Val(:html))
+    #
+    #=
+    println( io, "<h3>Correlations between Popularity of Policies</h3>")    
+    t = pretty_table( 
+        io,
+        d.correlations; 
+        header = (["Basic Income","Green New Deal", "Utilities", "Health", "Childcare", "Education", "Housing", "Transport", "Democracy", "Tax", ""]),
+        formatters=( form ), 
+        table_class="table table-sm table-striped  table-responsive", 
+        backend = Val(:html))
+    println( io, "<h3>P-Values for The Correlations</h3>")
+    t = pretty_table( 
+        io,
+        d.pvals; 
+        header = (["Basic Income","Green New Deal", "Utilities", "Health", "Childcare", "Education", "Housing", "Transport", "Democracy", "Tax", ""]),
+        formatters=( form ), 
+        table_class="table table-sm table-striped  table-responsive", 
+        backend = Val(:html))
+    println( io, "<p>Correlation Degrees of Freedom: (just sample size - 2) <b>$(d.degrees_of_freedom)</b></p>")
+    println( io, "<div class='row border border-primary'>")
+    =#
+    c = 0
+    for v in d.discretevars 
+        c += 1
+        pv = ActNow.lpretty(v)
+        println( io, "<div class='col p-2 border border-2'>")
+        println( io, "<h4>$pv</h4>")
+        
+        t = pretty_table( 
+            io,
+            d.hists[v],
+            formatters=( ActNow.form ), 
+            sortkeys=true,
+            header = ( ["","Proportion"]),
+            table_class="table table-sm table-striped table-responsive",
+            backend = Val(:html))
+        println( io, "</div>")
+        if c == 3
+            c = 0
+            println( io, "</div>")
+            println( io, "<div class='row'>")
+        end
+    end 
+   
+    println( io, "</div>")
+    c = 0
+    println( io, "<div class='row border border-primary'>")
+    for v in d.non_discretevars
+        c += 1
+        pv = ActNow.lpretty(v)
+        println( io, "<div class='col p-2  border border-2'>")
+        println( io, "<h4>$pv</h4>")
+        fname = "output/v2/img/transport-$(v)-bar.svg"
+        save( fname, d.plots[v] )
+        fname = "v2/img/transport-$(v)-bar.svg"
+        println( io, "<p><img src='$fname'/><p>")
+        println( io, "</div>")
+        if c == 3
+            c = 0
+            println( io, "</div>")
+            println( io, "<div class='row'>")
+        end
+    end
+    println( io, "</div>")    
+    close( io )
+end # make and print summarystats
