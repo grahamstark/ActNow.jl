@@ -28,9 +28,9 @@ RENAMES_ENERGY = Dict([
     C14
     C15
     =#
-    "Q6.1_4"=>"Public_Ownership_Pre",
-    "Q7.1_4"=>"Argument_Agreement",
-    "Q7.2_4"=>"Public_Ownership_Post",
+    "Q6.1_4"=>"energy_pre",
+    "Q7.1_4"=>"energy_argument",
+    "Q7.2_4"=>"energy_post",
     "Q8.2"=>"Age",
     "Q8.3"=>"Gender",
     "Q8.3_3_TEXT"=>"Gender_Other",
@@ -214,8 +214,38 @@ function recode_employment( employment :: Integer ) :: String
 end
 
 function load_energy()
-    energy = CSV.File("$(DD)/energy-conjoint.tab";delim='\t', skipto=3)|>DataFram
+    energy = CSV.File("$(DD)/energy-conjoint.tab";delim='\t', skipto=3)|>DataFrame
+    energy.destitute = energy."Q8.9_1".>= 70  
     rename!( energy, RENAMES_ENERGY)
+    energy = energy[energy.Finished .== 1,:] # 2 missing
+    energy = energy[(.! ismissing.( energy.Ethnic )),:] # 2 missing
+    n = size( energy )[1]
+    energy.HH_Net_Income_PA .= ActNow.recode_income.( energy.HH_Net_Income_PA)
+    energy.ethnic_2 = ActNow.recode_ethnic.( energy.Ethnic )
+    energy.last_election = ActNow.recode_party.( energy.Party_Last_Election, condensed=false )
+    energy.last_election_condensed = ActNow.recode_party.( energy.Party_Last_Election, condensed=true  )
+    energy.next_election = ActNow.recode_party.( energy.Party_Next_Election, condensed=false )
+    energy.next_election_condensed = ActNow.recode_party.( energy.Party_Next_Election, condensed=true )
+    energy.employment_2 = ActNow.recode_employment.(energy.Employment_Status)
+    energy.log_income = log.(energy.HH_Net_Income_PA)
+    energy.age_sq = energy.Age .^2
+    energy.Gender= convert.(String,energy.Gender)
+    energy.Gender = ActNow.recode_gender.( energy.Gender )
+    energy.trust_in_politics = ActNow.build_trust.( eachrow( energy ))
+    energy.Owner_Occupier= convert.(String,energy.Owner_Occupier)
+    energy.General_Health= convert.(String,energy.General_Health)
+    energy.energy_change = energy.energy_post - energy.energy_pre
+    # energy.Little_interest_in_things = convert.(String,energy.Little_interest_in_things )
+    energy.age5 = energy.Age .÷ 5
+    energy.poorhealth = energy.General_Health .∈ (["Bad","Very bad"],)
+    energy.unsatisfied_with_income = energy.Satisfied_With_Income .∈ ( 
+        ["1. Completely dissatisfied","2. Mostly dissatisfied", "3. Somewhat dissatisfied]"], )
+    energy.not_managing_financially = energy.Managing_Financially .∈ ( 
+        ["5. Finding it very difficult", "4.\tFinding it quite difficult"], )
+    energy.down_the_ladder = energy.Ladder .<= 4
+    # rename!( energy, ["last_election"=>"Party Vote Last Election"])
+    energy.is_redwall = ones(n)
+    energy
 end 
 
 function load_transport()
@@ -265,7 +295,7 @@ function load_transport()
     return transport
 end
 
-function do_all()
+function do_all_transport()
     transport = load_transport()
     ActNow.run_regressions_by_policy(
         transport,
@@ -274,6 +304,30 @@ function do_all()
         regdir = "v2/regressions/")
     summdf = score_summarystats( transport ) 
 end
+
+function do_all_energy()
+    policy = "energy"    
+    transport = load_energy()
+    ActNow.run_regressions_by_policy(
+        energy,
+        :energy;
+        exclude_0s_and_100s = false,
+        do_changes = false,
+        regdir = "v2/regressions/")
+    diffregs=[]
+    depvar = Symbol( "$(policy)_change")
+    reg = lm( @eval(@formula( $(depvar) ~ Gender )), data )
+    push!( diffregs, reg )
+    for mainvar in MAIN_EXPLANVARS
+        if mainvar in nms
+            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(mainvar))), data )
+            push!( diffregs, reg )
+        end
+    end 
+    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    summdf = score_summarystats( energy ) 
+end
+
 
 """
 
@@ -291,7 +345,7 @@ function make_big_file_by_policy(
     prefix::String,
     out_file_name="all_results_by_policy")
 
-    io = open( joinpath("output","$(out_file_name)-$(prefix).html"), "w")
+    io = open( joinpath("output","v2", "$(out_file_name)-$(prefix).html"), "w")
     header = """
     <!DOCTYPE html>
     <html>
@@ -330,7 +384,7 @@ function make_big_file_by_policy(
     println(io,"</section'>")
     println(io, "<h2 id='regressions'>Regressions: by Policy</h2>")
     for policy in [:transport]
-        prettypol = lpretty( policy )
+        prettypol = ActNow.lpretty( policy )
         exvar = prettypol * " (Before Explanation)"
         # exvar = MAIN_EXPLANDICT[Symbol(mainvar)]
         notes1 = """
@@ -356,27 +410,29 @@ function make_big_file_by_policy(
         println( io, "<h2>Regressions - Policy: $exvar </h2>")
         println( io, "<h3>Popularity of $prettypol: 1) Full Regression</h3>")
         fn = joinpath("output","v2",regdir,"actnow-$(policy)-$(prefix)-ols.html")
-        edit_table( io, fn )
+        ActNow.edit_table( io, fn )
         println( io, notes1 )
         #
         println( io, "<h3>Popularity of $prettypol: 2): Short Regressions</h3>")
         fn = joinpath("output","v2",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
-        edit_table( io, fn )
+        ActNow.edit_table( io, fn )
         #
         println( io, "<h3>Popularity of $prettypol: 3): Very Short Regressions</h3>")
         fn = joinpath("output","v2",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
-        edit_table( io, fn )
+        ActNow.edit_table( io, fn )
         #
         println( io, "<h3>Change in Popularity of $prettypol: By Argument</h3>")
         fn = joinpath("output","v2",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
-        edit_table( io, fn )    
+        ActNow.edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
         fn = joinpath("output","v2",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
-        edit_table( io, fn )    
+        ActNow.edit_table( io, fn )    
         println(io, notes2 )    
         println( io, "</section>")
     end
+
+    #=
     println(io, "<section id='chart-gallery'>")
     println( io, "<h2>Image Gallery</h2>")
     lines = readlines("output/image-index.html")
@@ -384,6 +440,7 @@ function make_big_file_by_policy(
         println( io, l )
     end
     println(io,"</section>")
+    =#
     println( io, footer )
     close(io)
 end

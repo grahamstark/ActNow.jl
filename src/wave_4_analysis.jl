@@ -335,7 +335,8 @@ function run_regressions_by_policy(
     dall::DataFrame, 
     policy :: Symbol;
     exclude_0s_and_100s :: Bool,
-    regdir = "regressions" )
+    regdir = "regressions",
+    do_changes = true )
     #
     # regressions: for each policy, before the explanation, do a big regression and a simple one and add them to a list
     # the convoluted `@eval(@formula( $(depvar)` bit just allows to sub in each dependent variable `$(depvar)`
@@ -377,35 +378,37 @@ function run_regressions_by_policy(
             push!( very_simpleregs, reg )
         end
     end 
-    #
-    # regression of change in popularity of each policy against each explanation
-    #
-    diffregs=[]
-    depvar = Symbol( "$(policy)_change")
-    reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), data )
-    push!( diffregs, reg )
-    for mainvar in MAIN_EXPLANVARS
-        if mainvar in nms
-            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
-            push!( diffregs, reg )
-        end
-    end 
-    diffregs2=[]
-    reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec))), data )
-    push!( diffregs2, reg )
-    for mainvar in MAIN_EXPLANVARS
-        if mainvar in nms
-            reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
-            push!( diffregs2, reg )
-        end
-    end 
-    # 
     labels = make_labels()
+    # 
     regtable(regs...;file=joinpath("output",regdir,"actnow-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
     regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
     regtable(very_simpleregs...;file=joinpath("output",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render=HtmlTable(), labels=labels)
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
-    regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    #
+    # regression of change in popularity of each policy against each explanation
+    #
+    if do_changes 
+        diffregs=[]
+        depvar = Symbol( "$(policy)_change")
+        reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec))), data )
+        push!( diffregs, reg )
+        for mainvar in MAIN_EXPLANVARS
+            if mainvar in nms
+                reg = lm( @eval(@formula( $(depvar) ~ Gender + $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
+                push!( diffregs, reg )
+            end
+        end 
+        diffregs2=[]
+        reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec))), data )
+        push!( diffregs2, reg )
+        for mainvar in MAIN_EXPLANVARS
+            if mainvar in nms
+                reg = lm( @eval(@formula( $(depvar) ~ $(relgains) + $(relflourish) + $(relsec) + $(mainvar))), data )
+                push!( diffregs2, reg )
+            end
+        end 
+        regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+        regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    end
     #
     #= ascii and latex versions of these - not needed 
     regtable(regs...;file="output/regressions/actnow-$(policy)-ols.txt",number_regressions=false, stat_below=true, render=AsciiTable(), labels=labels)
