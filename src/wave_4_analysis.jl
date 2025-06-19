@@ -270,6 +270,7 @@ function run_regressions_by_mainvar(
     # the convoluted `@eval(@formula( $(depvar)` bit just allows to sub in each dependent variable `$(depvar)`
     #
     prefix = exclude_0s_and_100s ?  "extremes_excluded" : "fullsample"
+    labels = make_labels()
     regs=[]
     simpleregs = []
     for policy in POLICIES
@@ -314,7 +315,6 @@ function run_regressions_by_mainvar(
         end
         push!( diffregs, reg )
     end 
-    labels = make_labels()
     regtable(regs...;file=joinpath("output",regdir,"actnow-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
     regtable(simpleregs...;file=joinpath("output",regdir,"actnow-simple-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true, render = HtmlTable(), labels=labels, below_statistic = ConfInt )
     regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(mainvar)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
@@ -827,12 +827,19 @@ function run_regressions( dall :: DataFrame;
 end
 
 
-function score_summarystats( dall :: DataFrame, policies ) :: DataFrame
+function score_summarystats( dall :: DataFrame, policies, treatments = TREATMENT_TYPES ) :: DataFrame
     n = length( policies )*3
     df = DataFrame(
         name = fill("",n),
-        subname = fill("",n),
-        relgains_mean= zeros(n),
+        subname = fill("",n))
+    for t in treatments
+        ak = Symbol( "$(t)_mean")
+        mk = Symbol( "$(t)_median")
+        df[!,ak] = zeros(n)
+        df[!,mk] = zeros(n)
+    end
+    #=
+        relgains_mean ,
         relgains_median = zeros(n),
         security_mean= zeros(n),
         security_median = zeros(n),
@@ -840,6 +847,7 @@ function score_summarystats( dall :: DataFrame, policies ) :: DataFrame
         absgains_median = zeros(n),
         other_argument_mean= zeros(n),
         other_argument_median = zeros(n))
+    =#
     i = 0
     for p in policies
         for group in ["All","Lovers","Haters"]
@@ -855,7 +863,7 @@ function score_summarystats( dall :: DataFrame, policies ) :: DataFrame
             elseif group == "Haters"
                 dall[vpre .< 30, : ]
             end
-            for t in TREATMENT_TYPES
+            for t in treatments
                 k = Symbol( "$(p)_treat_$(t)_score" ) # e.g. :basic_income_treat_absgains_score
                 subd = dallg[ .! ismissing.(dallg[!,k]),[k,:probability_weight]] # e.g. just those reporting a score for politics, absgains argument, and so on
                 subd.probability_weight = ProbabilityWeights( subd.probability_weight )
@@ -879,7 +887,7 @@ end
 """
 Make a pile of summary statistics and histograms
 """
-function make_summarystats( dall :: DataFrame, policies = POLICIES ) :: NamedTuple
+function make_summarystats( dall :: DataFrame, policies = POLICIES, treatments = TREATMENTS ) :: NamedTuple
     n = 100
     # haters - scoring pre below 30; lovers scoring over 70 pre
     df = DataFrame( 
@@ -1017,7 +1025,7 @@ function make_summarystats( dall :: DataFrame, policies = POLICIES ) :: NamedTup
         end
     end
     correlations, pvals, degrees_of_freedom = corrmatrix( dall, policies )
-    scores = score_summarystats( dall, policies  )
+    scores = score_summarystats( dall, policies, treatments )
     (; summarystats = df[1:i,:], plots, hists, correlations, discretevars, non_discretevars, pvals, degrees_of_freedom, scores )
 end
 

@@ -1,8 +1,30 @@
 
 using ActNow,DataFrames,CSV,StatsBase,PrettyTables,CairoMakie
 
-const DD = "/mnt/data/ActNow/Surveys/v2/"
 
+@usingany AlgebraOfGraphics
+@usingany ArgCheck
+@usingany CairoMakie
+@usingany CategoricalArrays
+@usingany Colors
+@usingany ColorSchemes
+@usingany CSV
+@usingany DataFrames
+@usingany FixedEffectModels
+@usingany Format
+@usingany GLM
+@usingany HypothesisTests
+@usingany Luxor
+@usingany Makie
+@usingany MixedModels
+@usingany MultivariateStats
+@usingany PrettyTables
+@usingany RegressionTables
+@usingany StatsBase
+@usingany StructuralEquationModels
+@usingany SurveyDataWeighting
+
+const DD = "/mnt/data/ActNow/Surveys/v2/"
 
 RENAMES_ENERGY = Dict([
     #=
@@ -29,7 +51,7 @@ RENAMES_ENERGY = Dict([
     C15
     =#
     "Q6.1_4"=>"energy_pre",
-    "Q7.1_4"=>"energy_argument",
+    "Q7.1_4"=>"energy_treat_argument_score",
     "Q7.2_4"=>"energy_post",
     "Q8.2"=>"Age",
     "Q8.3"=>"Gender",
@@ -219,6 +241,7 @@ function load_energy()
     rename!( energy, RENAMES_ENERGY)
     energy = energy[energy.Finished .== 1,:] # 2 missing
     energy = energy[(.! ismissing.( energy.Ethnic )),:] # 2 missing
+    energy = energy[(.! ismissing.(energy.HH_Net_Income_PA )) .& (energy.HH_Net_Income_PA .> 0),:]
     n = size( energy )[1]
     energy.HH_Net_Income_PA .= ActNow.recode_income.( energy.HH_Net_Income_PA)
     energy.ethnic_2 = ActNow.recode_ethnic.( energy.Ethnic )
@@ -244,7 +267,12 @@ function load_energy()
         ["5. Finding it very difficult", "4.\tFinding it quite difficult"], )
     energy.down_the_ladder = energy.Ladder .<= 4
     # rename!( energy, ["last_election"=>"Party Vote Last Election"])
-    energy.is_redwall = ones(n)
+    # transport.is_redwall .= false
+    energy.is_redwall .= false # ones(n)
+    energy.weight = ones( n )
+    energy.probability_weight = ProbabilityWeights(energy.weight./sum(energy.weight))
+    energy.energy_pre = Real.( energy.energy_pre ) # medians blow up without this - object to missings in type
+    energy.energy_post = Real.( energy.energy_post )
     energy
 end 
 
@@ -301,33 +329,38 @@ function do_all_transport()
         transport,
         :transport;
         exclude_0s_and_100s = false,
-        regdir = "v2/regressions/")
+        regdir = "transport/regressions/")
     summdf = score_summarystats( transport ) 
 end
 
 function do_all_energy()
     policy = "energy"    
-    transport = load_energy()
+    energy = load_energy()
+    regdir = "regressions/"
+    prefix="fullsample"
     ActNow.run_regressions_by_policy(
         energy,
         :energy;
         exclude_0s_and_100s = false,
         do_changes = false,
-        regdir = "v2/regressions/")
+        regdir = "$regdir/$policy" )
     diffregs=[]
     depvar = Symbol( "$(policy)_change")
-    reg = lm( @eval(@formula( $(depvar) ~ Gender )), data )
+    reg = lm( @eval(@formula( $(depvar) ~ Gender )), energy )
+    nms = names(energy)
     push!( diffregs, reg )
-    for mainvar in MAIN_EXPLANVARS
+    for mainvar in ActNow.MAIN_EXPLANVARS
         if mainvar in nms
-            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(mainvar))), data )
+            reg = lm( @eval(@formula( $(depvar) ~ Gender + $(mainvar))), energy )
             push!( diffregs, reg )
         end
     end 
-    regtable(diffregs...;file=joinpath("output",regdir,"actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
-    summdf = score_summarystats( energy ) 
+    labels = ActNow.make_labels()
+    regtable( diffregs...;file=joinpath("output", regdir, policy, "actnow-change-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+    # regtable(diffregs2...;file=joinpath("output",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html"),number_regressions=true, stat_below=true,  below_statistic = ConfInt, render = HtmlTable(), labels=labels)
+ # summdf = ActNow.score_summarystats( energy, [:energy], ["argument"] ) 
+    # ActNow.make_summarystats
 end
-
 
 """
 
@@ -343,9 +376,10 @@ function make_big_file_by_policy(
     ;
     regdir="regressions",
     prefix::String,
+    policy = "energy",
     out_file_name="all_results_by_policy")
-
-    io = open( joinpath("output","v2", "$(out_file_name)-$(prefix).html"), "w")
+    # regdir = "$regdir/$policy"
+    io = open( joinpath("output","$policy", "$(out_file_name)-$(prefix).html"), "w")
     header = """
     <!DOCTYPE html>
     <html>
@@ -377,13 +411,13 @@ function make_big_file_by_policy(
 
     println(io, "<section id='summary'>")
     println( io, "<h2>Summary Statistics</h2>")
-    lines = readlines("output/v2/summary_stats.html")
+    lines = readlines("output/$policy/summary_stats.html")
     for l in lines
         println( io, l )
     end
     println(io,"</section'>")
     println(io, "<h2 id='regressions'>Regressions: by Policy</h2>")
-    for policy in [:transport]
+    for polsym in [Symbol(policy)]
         prettypol = ActNow.lpretty( policy )
         exvar = prettypol * " (Before Explanation)"
         # exvar = MAIN_EXPLANDICT[Symbol(mainvar)]
@@ -409,25 +443,27 @@ function make_big_file_by_policy(
         println( io, "<section>")
         println( io, "<h2>Regressions - Policy: $exvar </h2>")
         println( io, "<h3>Popularity of $prettypol: 1) Full Regression</h3>")
-        fn = joinpath("output","v2",regdir,"actnow-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output",regdir, policy, "actnow-$(policy)-$(prefix)-ols.html")
         ActNow.edit_table( io, fn )
         println( io, notes1 )
         #
         println( io, "<h3>Popularity of $prettypol: 2): Short Regressions</h3>")
-        fn = joinpath("output","v2",regdir,"actnow-simple-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output",regdir, policy, "actnow-simple-$(policy)-$(prefix)-ols.html")
         ActNow.edit_table( io, fn )
         #
         println( io, "<h3>Popularity of $prettypol: 3): Very Short Regressions</h3>")
-        fn = joinpath("output","v2",regdir,"actnow-very-simple-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output",regdir, policy, "actnow-very-simple-$(policy)-$(prefix)-ols.html")
         ActNow.edit_table( io, fn )
         #
         println( io, "<h3>Change in Popularity of $prettypol: By Argument</h3>")
-        fn = joinpath("output","v2",regdir,"actnow-change-$(policy)-$(prefix)-ols.html")
+        fn = joinpath("output", regdir, policy, "actnow-change-$(policy)-$(prefix)-ols.html")
         ActNow.edit_table( io, fn )    
         println(io, notes2 )    
-        println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
-        fn = joinpath("output","v2",regdir,"actnow-change-sexless-$(policy)-$(prefix)-ols.html")
-        ActNow.edit_table( io, fn )    
+        fn = joinpath("output",regdir, policy, "actnow-change-sexless-$(policy)-$(prefix)-ols.html")
+        if isfile(fn) # doesn't exist for energy
+            println( io, "<h3>Change in Popularity of $prettypol: Genderless By Argument</h3>")
+            ActNow.edit_table( io, fn )    
+        end
         println(io, notes2 )    
         println( io, "</section>")
     end
@@ -446,9 +482,9 @@ function make_big_file_by_policy(
 end
 
 
-function tra_make_and_print_summarystats( dall :: DataFrame )
-    d = ActNow.make_summarystats( dall, [:transport] )
-    io = open( "output/v2/summary_stats.html", "w")
+function tra_make_and_print_summarystats( dall :: DataFrame, policy::String, treatments = ActNow.TREATMENTS )
+    d = ActNow.make_summarystats( dall, [Symbol(policy)], treatments )
+    io = open( "output/$policy/summary_stats.html", "w")
     println( io, "<h3>Summary Statistics</h3>")
     t = pretty_table( 
         io,
@@ -547,9 +583,9 @@ function tra_make_and_print_summarystats( dall :: DataFrame )
         pv = ActNow.lpretty(v)
         println( io, "<div class='col p-2  border border-2'>")
         println( io, "<h4>$pv</h4>")
-        fname = "output/v2/img/transport-$(v)-bar.svg"
+        fname = "output/$policy/img/$policy-$(v)-bar.svg"
         save( fname, d.plots[v] )
-        fname = "v2/img/transport-$(v)-bar.svg"
+        fname = "$policy/img/$policy-$(v)-bar.svg"
         println( io, "<p><img src='$fname'/><p>")
         println( io, "</div>")
         if c == 3
